@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background:
+    radial-gradient(900px 420px at 100% -10%, rgba(196, 163, 90, 0.2), transparent 50%),
+    radial-gradient(700px 380px at -10% 0%, rgba(30, 42, 36, 0.06), transparent 46%),
+    #f3f0e8;
+}
+
+.book {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.book thead th {
+  background: #f6f1e6;
+  color: #6b645b;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.book tbody tr:hover td {
+  background: rgba(196, 163, 90, 0.1);
+}
+
+.book tbody tr:last-child td {
+  border-bottom-width: 0;
+}
+
+.book.spread {
+  min-width: 40rem;
+  table-layout: fixed;
+}
+
+.book.spread th,
+.book.spread td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.book.spread td {
+  overflow-wrap: break-word;
+}
+
+input, select, textarea, button {
+  font: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}

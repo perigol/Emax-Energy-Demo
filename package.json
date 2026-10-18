@@ -1,0 +1,16 @@
+{
+  "name": "norteluz",
+  "private": true,
+  "packageManager": "pnpm@9.5.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @norteluz/api --filter @norteluz/web dev",
+    "build": "pnpm --filter @norteluz/tax build && pnpm --filter @norteluz/api build && pnpm --filter @norteluz/web build",
+    "test": "pnpm --filter @norteluz/tax test && pnpm --filter @norteluz/api test",
+    "db:setup": "pnpm --filter @norteluz/api db:setup",
+    "db:seed": "pnpm --filter @norteluz/api db:seed",
+    "verify": "pnpm test && pnpm --filter @norteluz/api verify"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
