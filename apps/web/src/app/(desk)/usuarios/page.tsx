@@ -12,6 +12,7 @@ interface User { id: string; name: string; email: string; role: 'ADMIN' | 'GESTO
 export default function UsersPage() {
   const [rows, setRows] = useState<User[]>([])
   const [error, setError] = useState('')
+  const [open, setOpen] = useState(false)
   const toast = useToast()
 
   function load() {
@@ -34,6 +35,7 @@ export default function UsersPage() {
         }),
       })
       event.currentTarget.reset()
+      setOpen(false)
       toast('Usuario creado')
       load()
     } catch (caught) {
@@ -45,41 +47,43 @@ export default function UsersPage() {
 
   return (
     <div>
-      <PageTitle title="Usuarios" text="El administrador crea las cuentas. El rol Facturas solo puede subir recibidas y gastos." />
-      <div className="mb-4">
-        <Listing
-          rows={rows}
-          rowKey={(row) => row.id}
-          placeholder="Buscar por nombre, correo o rol"
-          haystack={(row) => [row.name, row.email, roleLabel[row.role]].join(' ')}
-          columns={[
-            { key: 'name', label: 'Nombre', value: (row) => row.name, cell: (row) => row.name },
-            { key: 'email', label: 'Correo', value: (row) => row.email, cell: (row) => row.email },
-            { key: 'role', label: 'Rol', value: (row) => roleLabel[row.role] || row.role, cell: (row) => roleLabel[row.role] },
-          ]}
-        />
-      </div>
-      <Card>
-        <h2 className="mb-3 font-serif text-xl">Nueva cuenta</h2>
-        <form onSubmit={create} className="grid gap-3 md:grid-cols-2">
-          <Field label="Nombre" required><input className={control} name="name" required minLength={2} maxLength={120} /></Field>
-          <Field label="Correo" required><input className={control} type="email" name="email" required maxLength={160} /></Field>
-          <Field label="Rol" required>
-            <select className={control} name="role" defaultValue="GESTOR">
-              <option value="ADMIN">Administrador</option>
-              <option value="GESTOR">Gestor</option>
-              <option value="FACTURAS">Carga de facturas</option>
-            </select>
-          </Field>
-          <div>
+      <PageTitle
+        title="Usuarios"
+        text="El administrador crea las cuentas. El rol Facturas solo puede subir recibidas y gastos."
+        action={<Button onClick={() => setOpen((value) => !value)}>{open ? 'Cerrar' : 'Nuevo usuario'}</Button>}
+      />
+      {open ? (
+        <Card className="mb-4">
+          <h2 className="mb-4 font-serif text-xl text-pine">Nuevo usuario</h2>
+          <form onSubmit={create} className="grid gap-3 md:grid-cols-2">
+            <Field label="Nombre" required><input className={control} name="name" required minLength={2} maxLength={120} /></Field>
+            <Field label="Correo" required><input className={control} type="email" name="email" required maxLength={160} /></Field>
+            <Field label="Rol" required>
+              <select className={control} name="role" defaultValue="GESTOR">
+                <option value="ADMIN">Administrador</option>
+                <option value="GESTOR">Gestor</option>
+                <option value="FACTURAS">Carga de facturas</option>
+              </select>
+            </Field>
             <Field label="Contraseña" required hint="Mínimo 8 caracteres, con mayúscula, minúscula, un número y un símbolo.">
               <input className={control} name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" />
             </Field>
-          </div>
-          {error ? <div className="md:col-span-2"><ErrorNote>{error}</ErrorNote></div> : null}
-          <div><Button type="submit">Crear usuario</Button></div>
-        </form>
-      </Card>
+            {error ? <div className="md:col-span-2"><ErrorNote>{error}</ErrorNote></div> : null}
+            <div><Button type="submit">Crear usuario</Button></div>
+          </form>
+        </Card>
+      ) : null}
+      <Listing
+        rows={rows}
+        rowKey={(row) => row.id}
+        placeholder="Buscar por nombre, correo o rol"
+        haystack={(row) => [row.name, row.email, roleLabel[row.role]].join(' ')}
+        columns={[
+          { key: 'name', label: 'Nombre', value: (row) => row.name, cell: (row) => row.name },
+          { key: 'email', label: 'Correo', value: (row) => row.email, cell: (row) => row.email },
+          { key: 'role', label: 'Rol', value: (row) => roleLabel[row.role] || row.role, cell: (row) => roleLabel[row.role] },
+        ]}
+      />
     </div>
   )
 }
