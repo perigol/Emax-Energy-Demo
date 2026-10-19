@@ -7,7 +7,7 @@ import { euro, operationLabel, todayIso } from '@/lib/format'
 import { reason, useToast } from '@/lib/toast'
 import { Button, Card, ErrorNote, Field, PageTitle, control } from '@/components/shell'
 
-interface Contact { id: string; name: string; kind: string }
+interface Contact { id: string; name: string; kind: string; nif: string }
 interface Service { id: string; name: string; unitPrice: number; vatRate: number }
 interface Line { concept: string; quantity: number; unitPrice: number; vatRate: number }
 interface LineRow extends Line { key: number }
@@ -95,12 +95,12 @@ export default function NewInvoicePage() {
           }}
         >
           <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Cliente" required>
+            <Field label="Cliente" required hint={contacts.find((item) => item.id === contactId)?.nif ? `NIF ${contacts.find((item) => item.id === contactId)?.nif}. No hace falta repetirlo.` : undefined}>
               <select className={control} value={contactId} onChange={(e) => setContactId(e.target.value)}>
                 {contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}
               </select>
             </Field>
-            <Field label="Operación" required>
+            <Field label="Operación" required hint="En España se aplica el IVA. Dentro de la UE, el IVA suele ser cero.">
               <select className={control} value={operation} onChange={(e) => setOperation(e.target.value)}>
                 {Object.entries(operationLabel).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>

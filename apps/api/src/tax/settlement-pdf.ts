@@ -20,7 +20,7 @@ const CLAVE: Record<string, string> = {
 export interface SettlementPdfInput {
   year: number
   quarter: 1 | 2 | 3 | 4
-  settledOn: string
+  settledOn: string | null
   org: { legalName: string; nif: string; fiscalAddress: string; logoData: Uint8Array | null; logoMime: string | null }
   modelo303: Modelo303
   modelo111: Modelo111
@@ -43,7 +43,7 @@ function paint(doc: PDFKit.PDFDocument, input: SettlementPdfInput) {
   const range = quarterRange(input.year, input.quarter)
   doc.rect(0, 0, 595.28, 118).fill(PINE)
   doc.rect(0, 118, 595.28, 5).fill(GOLD)
-  doc.fillColor(GOLD).font('Times-Bold').fontSize(11).text('NORTE LUZ', 40, 28)
+  doc.fillColor(GOLD).font('Times-Bold').fontSize(11).text('ENERFACTURA', 40, 28)
   doc.fillColor(PAPER).font('Times-Bold').fontSize(24).text('Liquidación trimestral', 40, 48)
   doc.font('Times-Roman').fontSize(11).fillColor('#d9d3c7').text('Modelos 303, 111 y 349 · régimen general', 40, 82)
   doc.fillColor(PAPER).font('Times-Bold').fontSize(20).text(`${input.quarter}T ${input.year}`, 390, 52, {
@@ -70,10 +70,12 @@ function paint(doc: PDFKit.PDFDocument, input: SettlementPdfInput) {
     width: 175,
     align: 'right',
   })
-  doc.fillColor(MIST).font('Times-Roman').fontSize(10).text(`Liquidada el ${fecha(input.settledOn)}`, 380, y + 32, {
-    width: 175,
-    align: 'right',
-  })
+  doc.fillColor(MIST).font('Times-Roman').fontSize(10).text(
+    input.settledOn ? `Liquidada el ${fecha(input.settledOn)}` : 'Sin liquidar',
+    380,
+    y + 32,
+    { width: 175, align: 'right' },
+  )
 
   y = 214
   y = sectionTitle(doc, y, 'Modelo 303', 'IVA devengado y deducible')
@@ -216,7 +218,7 @@ export function renderYearSettlementPdf(input: YearSettlementPdfInput): Promise<
 function paintYear(doc: PDFKit.PDFDocument, input: YearSettlementPdfInput) {
   doc.rect(0, 0, 595.28, 118).fill(PINE)
   doc.rect(0, 118, 595.28, 5).fill(GOLD)
-  doc.fillColor(GOLD).font('Times-Bold').fontSize(11).text('NORTE LUZ', 40, 28)
+  doc.fillColor(GOLD).font('Times-Bold').fontSize(11).text('ENERFACTURA', 40, 28)
   doc.fillColor(PAPER).font('Times-Bold').fontSize(24).text('Liquidación del ejercicio', 40, 48)
   doc.font('Times-Roman').fontSize(11).fillColor('#d9d3c7').text('Cuatro trimestres · modelos 303, 111 y 349', 40, 82)
   doc.fillColor(PAPER).font('Times-Bold').fontSize(20).text(String(input.year), 390, 52, { width: 165, align: 'right' })

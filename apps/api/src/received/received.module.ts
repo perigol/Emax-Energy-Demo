@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Res,
   UploadedFile,
@@ -20,6 +22,7 @@ import { requireVies } from '../contacts/vies'
 import { PrismaService } from '../prisma/prisma.service'
 import { Require } from '../auth/decorators'
 import { PaymentsService } from '../payments/payments.service'
+import { scanInvoiceFile } from './scan-file'
 
 class ReceivedForm {
   @IsOptional() @IsString() contactId?: string
@@ -29,6 +32,16 @@ class ReceivedForm {
   @IsOptional() @IsString() vatNumber?: string
   @IsOptional() @IsString() isProfessional?: string
   @IsOptional() @IsString() irpfRate?: string
+  @IsOptional() @IsString() base?: string
+  @IsOptional() @IsString() vatRate?: string
+  @IsOptional() @IsString() vatDeductible?: string
+  @IsOptional() @IsString() operation?: string
+  @IsOptional() @IsString() date?: string
+  @IsOptional() @IsString() concept?: string
+  @IsOptional() @IsString() number?: string
+}
+
+class ReceivedUpdate {
   @IsOptional() @IsString() base?: string
   @IsOptional() @IsString() vatRate?: string
   @IsOptional() @IsString() vatDeductible?: string
@@ -69,6 +82,17 @@ export class ReceivedController {
   }
 
   @Require('received')
+  @Post('scan')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async scan(
+    @UploadedFile() file?: { size: number; mimetype: string; originalname: string; buffer: Buffer },
+  ) {
+    if (!file) throw new BadRequestException('Adjunta un PDF o una imagen')
+    if (file.size > 2 * 1024 * 1024) throw new BadRequestException('El archivo supera los 2 MB')
+    return scanInvoiceFile(file)
+  }
+
+  @Require('received')
   @Get(':id')
   async one(@Param('id') id: string) {
     return present(await this.load(id))
@@ -88,13 +112,7 @@ export class ReceivedController {
     const concept = asText(body.concept, 'El concepto', LIMIT.concept)
     const number = asText(body.number, 'El número de factura', LIMIT.number)
     const supplier = await this.resolveSupplier(body)
-    const irpfRate = supplier.isProfessional ? asNumber(supplier.defaultIrpfRate) || 15 : 0
-    const vat = money((base * vatRate) / 100)
-    const irpf = money((base * irpfRate) / 100)
-    const total = operation === 'NACIONAL' ? money(base + vat - irpf) : money(base - irpf)
-    fitMoney(vat, 'El IVA')
-    fitMoney(irpf, 'La retención')
-    fitMoney(total, 'El total')
+    const amounts = computeAmounts(base, vatRate, operation, supplier)
     const upload = readUpload(file)
     const created = await this.prisma.receivedInvoice.create({
       data: {
@@ -105,10 +123,10 @@ export class ReceivedController {
         concept,
         base,
         vatRate,
-        vat,
+        vat: amounts.vat,
         vatDeductible: asBool(body.vatDeductible, true),
-        irpfWithheld: irpf,
-        total,
+        irpfWithheld: amounts.irpf,
+        total: amounts.total,
         status: 'REGISTRADA',
         ...upload,
       },
@@ -127,6 +145,50 @@ export class ReceivedController {
       optionalText(body.bankAccountId) ?? undefined,
     )
     return present(await this.load(id))
+  }
+
+  @Require('received')
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() body: ReceivedUpdate) {
+    const invoice = await this.load(id)
+    if (asNumber(invoice.paidAmount) > 0) {
+      throw new BadRequestException('No se puede editar una factura con pagos registrados')
+    }
+    const base = asAmount(body.base, 'La base')
+    const vatRate = asRate(body.vatRate)
+    const operation = asOperation(body.operation)
+    const date = asDate(body.date, 'La fecha')
+    const concept = asText(body.concept, 'El concepto', LIMIT.concept)
+    const number = asText(body.number, 'El número de factura', LIMIT.number)
+    const amounts = computeAmounts(base, vatRate, operation, invoice.supplier)
+    const updated = await this.prisma.receivedInvoice.update({
+      where: { id },
+      data: {
+        number,
+        date: utcDay(date),
+        operation,
+        concept,
+        base,
+        vatRate,
+        vat: amounts.vat,
+        vatDeductible: asBool(body.vatDeductible, true),
+        irpfWithheld: amounts.irpf,
+        total: amounts.total,
+      },
+      include: { supplier: true, payments: true },
+    })
+    return present(updated)
+  }
+
+  @Require('received', 'delete')
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    const invoice = await this.load(id)
+    if (asNumber(invoice.paidAmount) > 0 || invoice.payments.length > 0) {
+      throw new BadRequestException('No se puede borrar una factura con pagos registrados')
+    }
+    await this.prisma.receivedInvoice.delete({ where: { id } })
+    return { ok: true }
   }
 
   @Require('received')
@@ -178,6 +240,22 @@ export class ReceivedController {
       },
     })
   }
+}
+
+function computeAmounts(
+  base: number,
+  vatRate: number,
+  operation: ReturnType<typeof asOperation>,
+  supplier: { isProfessional: boolean; defaultIrpfRate: { toString(): string } | null },
+) {
+  const irpfRate = supplier.isProfessional ? asNumber(supplier.defaultIrpfRate) || 15 : 0
+  const vat = money((base * vatRate) / 100)
+  const irpf = money((base * irpfRate) / 100)
+  const total = operation === 'NACIONAL' ? money(base + vat - irpf) : money(base - irpf)
+  fitMoney(vat, 'El IVA')
+  fitMoney(irpf, 'La retención')
+  fitMoney(total, 'El total')
+  return { vat, irpf, total }
 }
 
 function present(invoice: {

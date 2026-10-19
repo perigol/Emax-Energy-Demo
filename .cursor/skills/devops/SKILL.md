@@ -1,6 +1,6 @@
 ---
 name: devops
-description: Prepara el monorepo, Postgres, Docker y el despliegue de Norte Luz en Neon, Railway y Vercel. Usar al cambiar scripts, variables de entorno, Dockerfile, compose o el README.
+description: Prepara el monorepo, Postgres, Docker y el despliegue de EnerFactura en Neon, Railway y Vercel. Usar al cambiar scripts, variables de entorno, Dockerfile, compose o el README.
 ---
 
 # DevOps

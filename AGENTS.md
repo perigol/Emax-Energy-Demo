@@ -1,4 +1,4 @@
-# Agentes de Norte Luz
+# Agentes de EnerFactura
 
 Muestra de contabilidad española. Cada skill vive en `.cursor/skills/` y se aplica al trabajar en su zona. El cálculo fiscal no se reescribe en la API ni en la web.
 

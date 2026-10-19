@@ -8,6 +8,15 @@ export class ApiError extends Error {
 
 const base = () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+/** Host de la API que usa el navegador (para comprobar entorno en el panel). */
+export function apiHost() {
+  try {
+    return new URL(base()).host
+  } catch {
+    return base()
+  }
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers)
   const token = localStorage.getItem('nl_token')

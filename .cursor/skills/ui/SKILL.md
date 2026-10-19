@@ -1,6 +1,6 @@
 ---
 name: ui
-description: Define la interfaz del backoffice de Norte Luz y el PDF de factura. Usar al cambiar layout, estilos, copys, estados vacíos o la factura impresa.
+description: Define la interfaz del backoffice de EnerFactura y el PDF de factura. Usar al cambiar layout, estilos, copys, estados vacíos o la factura impresa.
 ---
 
 # UI

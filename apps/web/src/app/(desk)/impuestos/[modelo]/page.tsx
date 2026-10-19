@@ -6,12 +6,12 @@ import { api } from '@/lib/api'
 import { reason, useToast } from '@/lib/toast'
 import { euro } from '@/lib/format'
 import { Listing } from '@/components/listing'
-import { Card, ErrorNote, PageTitle } from '@/components/shell'
+import { Button, Card, ErrorNote, PageTitle } from '@/components/shell'
 
 const titles: Record<string, string> = {
-  '303': 'Modelo 303',
-  '111': 'Modelo 111',
-  '349': 'Modelo 349',
+  '303': 'IVA del trimestre',
+  '111': 'Retenciones',
+  '349': 'Operaciones con la UE',
 }
 
 export default function TaxModelRoute() {
@@ -30,7 +30,25 @@ function TaxModelPage() {
   const [quarter, setQuarter] = useState(Number(search.get('quarter') || 1))
   const [data, setData] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const toast = useToast()
+
+  async function download() {
+    setBusy(true)
+    try {
+      const blob = await api<Blob>(`/tax/settlements/${year}/${quarter}/pdf`)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `liquidacion-${quarter}T-${year}.pdf`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (caught) {
+      toast(reason(caught, 'No se pudo descargar el PDF'), 'bad')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     setError('')
@@ -51,13 +69,16 @@ function TaxModelPage() {
         title={titles[modelo] || 'Modelo'}
         text={`${quarter}T ${year}. Las cifras salen de los documentos de ese trimestre.`}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select className="rounded-md border border-line bg-white px-3 py-2" value={year} onChange={(e) => setYear(Number(e.target.value))}>
               {[2025, 2026, 2027].map((item) => <option key={item}>{item}</option>)}
             </select>
             <select className="rounded-md border border-line bg-white px-3 py-2" value={quarter} onChange={(e) => setQuarter(Number(e.target.value))}>
               {[1, 2, 3, 4].map((item) => <option key={item} value={item}>{item}T</option>)}
             </select>
+            <Button type="button" tone="ghost" disabled={busy} onClick={() => void download()}>
+              {busy ? 'Descargando…' : 'Descargar PDF'}
+            </Button>
           </div>
         }
       />

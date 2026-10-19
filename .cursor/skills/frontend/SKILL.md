@@ -1,6 +1,6 @@
 ---
 name: frontend
-description: Construye las pantallas Next.js que consumen la API de Norte Luz. Usar al modificar apps/web, el panel, facturas, impuestos, sesión o el cliente HTTP.
+description: Construye las pantallas Next.js que consumen la API de EnerFactura. Usar al modificar apps/web, el panel, facturas, impuestos, sesión o el cliente HTTP.
 ---
 
 # Frontend

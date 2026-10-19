@@ -201,7 +201,7 @@ function cents(euros: number): string {
 
 export function sampleNorma43(): string {
   const lines = [
-    `112100081301234567892601012608312${cents(756)}9782${column('NORTE LUZ', 26)}   `,
+    `112100081301234567892601012608312${cents(756)}9782${column('ENERFACTURA', 26)}   `,
     movement('260228', '04', '2', 500, 'Cobro Atelier Lumiere'),
     concept('Cobro Atelier Lumière SARL'),
     movement('260310', '04', '1', 200, 'Pago Kraft Teile'),

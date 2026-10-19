@@ -5,20 +5,43 @@ import { api } from '@/lib/api'
 import { roleLabel } from '@/lib/format'
 import { Listing } from '@/components/listing'
 import { reason, useToast } from '@/lib/toast'
+import { useSession } from '@/lib/session'
+import {
+  EditUserModal,
+  UserRowActions,
+  type UserListRow,
+} from '@/components/user-list-tools'
 import { Button, Card, ErrorNote, Field, PageTitle, control } from '@/components/shell'
 
-interface User { id: string; name: string; email: string; role: 'ADMIN' | 'GESTOR' | 'FACTURAS' }
-
 export default function UsersPage() {
-  const [rows, setRows] = useState<User[]>([])
+  const { user: session } = useSession()
+  const [rows, setRows] = useState<UserListRow[]>([])
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
+  const [edit, setEdit] = useState<UserListRow | null>(null)
   const toast = useToast()
+  const selfId = session?.sub || session?.id
 
   function load() {
-    api<User[]>('/users').then(setRows).catch((caught: Error) => setError(caught.message))
+    api<UserListRow[]>('/users').then(setRows).catch((caught: Error) => setError(caught.message))
   }
   useEffect(load, [])
+
+  function mergeRow(updated: UserListRow) {
+    setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
+  }
+
+  async function removeRow(row: UserListRow) {
+    const ok = window.confirm(`¿Eliminar la cuenta de ${row.name}?`)
+    if (!ok) return
+    try {
+      await api(`/users/${row.id}`, { method: 'DELETE' })
+      setRows((current) => current.filter((item) => item.id !== row.id))
+      toast('Usuario eliminado')
+    } catch (caught) {
+      toast(reason(caught, 'No se pudo eliminar'), 'bad')
+    }
+  }
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -82,8 +105,28 @@ export default function UsersPage() {
           { key: 'name', label: 'Nombre', value: (row) => row.name, cell: (row) => row.name },
           { key: 'email', label: 'Correo', value: (row) => row.email, cell: (row) => row.email },
           { key: 'role', label: 'Rol', value: (row) => roleLabel[row.role] || row.role, cell: (row) => roleLabel[row.role] },
+          {
+            key: 'actions',
+            label: 'Acciones',
+            sortable: false,
+            cell: (row) => {
+              const isSelf = Boolean(selfId && row.id === selfId)
+              return (
+                <UserRowActions
+                  user={row}
+                  onEdit={() => setEdit(row)}
+                  onDelete={() => void removeRow(row)}
+                  deleteDisabled={isSelf}
+                  deleteLabel={isSelf ? 'No puedes eliminar tu propia cuenta' : undefined}
+                />
+              )
+            },
+          },
         ]}
       />
+      {edit ? (
+        <EditUserModal user={edit} onClose={() => setEdit(null)} onSuccess={mergeRow} />
+      ) : null}
     </div>
   )
 }

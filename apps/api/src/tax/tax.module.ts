@@ -83,8 +83,40 @@ export class TaxController {
           .map((row) => asNumber(row.total) - asNumber(row.paidAmount)),
       ].reduce((sum, value) => sum + value, 0),
     )
+    const issuedOk = new Set(['EMITIDA', 'COBRADA_PARCIAL', 'COBRADA'])
+    const ingresos = money(
+      issued
+        .filter((row) => issuedOk.has(row.status) && inYear(row.issueDate))
+        .reduce((sum, row) => sum + (row.rectifiesId ? -asNumber(row.total) : asNumber(row.total)), 0),
+    )
+    const gastos = money(
+      [
+        ...received.filter((row) => inYear(row.date)).map((row) => asNumber(row.total)),
+        ...expenses.filter((row) => inYear(row.date)).map((row) => asNumber(row.total)),
+      ].reduce((sum, value) => sum + value, 0),
+    )
+    const monthOf = (date: Date) => date.getUTCMonth() + 1
+    const months = Array.from({ length: 12 }, (_, index) => {
+      const month = index + 1
+      const monthIngresos = money(
+        issued
+          .filter((row) => issuedOk.has(row.status) && inYear(row.issueDate) && monthOf(row.issueDate) === month)
+          .reduce((sum, row) => sum + (row.rectifiesId ? -asNumber(row.total) : asNumber(row.total)), 0),
+      )
+      const monthGastos = money(
+        [
+          ...received.filter((row) => inYear(row.date) && monthOf(row.date) === month).map((row) => asNumber(row.total)),
+          ...expenses.filter((row) => inYear(row.date) && monthOf(row.date) === month).map((row) => asNumber(row.total)),
+        ].reduce((sum, value) => sum + value, 0),
+      )
+      return { month, ingresos: monthIngresos, gastos: monthGastos }
+    })
     return {
       year,
+      ingresos,
+      gastos,
+      months,
+      balance: money(ingresos - gastos),
       pendienteCobro,
       pendientePago,
       quarters: calculated.quarters.map((quarter) => ({
@@ -296,13 +328,14 @@ export class TaxController {
       this.prisma.quarterSettlement.findUnique({ where: { year_quarter: { year, quarter } } }),
       this.prisma.organization.findFirst(),
     ])
-    if (!row) throw new NotFoundException('Ese trimestre no está liquidado.')
     if (!org) throw new NotFoundException('Falta la configuración de la empresa')
-    const snapshot = readSnapshot(row.snapshot)
+    const snapshot = row
+      ? readSnapshot(row.snapshot)
+      : periodSnapshot(calculatePeriod(await this.documents(), year, quarter))
     const buffer = await renderSettlementPdf({
       year,
       quarter,
-      settledOn: madridToday(row.settledAt),
+      settledOn: row ? madridToday(row.settledAt) : null,
       org,
       ...snapshot,
     })
@@ -422,16 +455,24 @@ function madridToday(date = new Date()): string {
   }).format(date)
 }
 
+function periodSnapshot(period: {
+  modelo303: Modelo303
+  modelo111: Modelo111
+  modelo349: Modelo349Line[]
+}) {
+  return {
+    modelo303: period.modelo303,
+    modelo111: period.modelo111,
+    modelo349: period.modelo349,
+  }
+}
+
 function snapshotOf(period: {
   modelo303: Modelo303
   modelo111: Modelo111
   modelo349: Modelo349Line[]
 }): Prisma.InputJsonObject {
-  return JSON.parse(JSON.stringify({
-    modelo303: period.modelo303,
-    modelo111: period.modelo111,
-    modelo349: period.modelo349,
-  })) as Prisma.InputJsonObject
+  return JSON.parse(JSON.stringify(periodSnapshot(period))) as Prisma.InputJsonObject
 }
 
 function readSnapshot(value: Prisma.JsonValue): {

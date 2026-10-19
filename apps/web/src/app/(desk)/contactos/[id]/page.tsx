@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { api } from '@/lib/api'
-import { euro, fecha, kindLabel, operationLabel } from '@/lib/format'
-import { BackButton, Card, PageTitle, Pill } from '@/components/shell'
+import { euro, fecha, issuedDisplayStatus, kindLabel, operationLabel } from '@/lib/format'
+import { BackButton, Card, PageTitle, Pill, RowViewLink } from '@/components/shell'
 
 interface Detail {
   id: string
@@ -17,7 +17,17 @@ interface Detail {
   email: string | null
   address: string | null
   isProfessional: boolean
-  issued: { id: string; series: string | null; number: number | null; issueDate: string; status: string; total: number; operation: string }[]
+  issued: {
+    id: string
+    code: string
+    issueDate: string
+    displayStatus: string
+    status: string
+    rectifiesId: string | null
+    hasRectificativa?: boolean
+    total: number
+    operation: string
+  }[]
   received: { id: string; number: string; date: string; status: string; total: number; operation: string }[]
 }
 
@@ -63,10 +73,19 @@ export default function ContactDetailPage() {
         <Card>
           <h2 className="mb-3 font-serif text-xl">Facturas emitidas</h2>
           {data.issued.length === 0 ? <p className="text-sm text-mist">No hay facturas emitidas a este contacto.</p> : data.issued.map((row) => (
-            <Link key={row.id} href={`/facturas/${row.id}`} className="flex items-center justify-between border-b border-line py-2 text-sm last:border-0">
-              <span>{fecha(row.issueDate)} · {operationLabel[row.operation]}</span>
-              <span className="tabular">{euro.format(row.total)}</span>
-            </Link>
+            <div key={row.id} className="flex items-center gap-2 border-b border-line py-2 text-sm last:border-0">
+              <Link href={`/facturas/${row.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <span className="min-w-0 truncate">
+                  <span className="font-medium text-pine">{row.code}</span>
+                  <span className="text-mist"> · {fecha(row.issueDate)} · {operationLabel[row.operation]}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <Pill status={issuedDisplayStatus(row)} />
+                  <span className="tabular">{euro.format(row.total)}</span>
+                </span>
+              </Link>
+              <RowViewLink href={`/facturas/${row.id}`} label={`Ver factura ${row.code}`} />
+            </div>
           ))}
         </Card>
         <Card>

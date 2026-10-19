@@ -21,9 +21,9 @@ export default function TaxIndexPage() {
         }
       />
       <div className="grid gap-4 md:grid-cols-3">
-        <ModelLink href={`/impuestos/303?year=${year}&quarter=1`} title="Modelo 303" text="IVA repercutido menos IVA soportado deducible." />
-        <ModelLink href={`/impuestos/111?year=${year}&quarter=1`} title="Modelo 111" text="Retenciones a profesionales y perceptores." />
-        <ModelLink href={`/impuestos/349?year=${year}&quarter=1`} title="Modelo 349" text="Operaciones con empresas de la Unión Europea." />
+        <ModelLink href={`/impuestos/303?year=${year}&quarter=1`} title="IVA del trimestre" text="IVA de las ventas menos IVA de las compras." />
+        <ModelLink href={`/impuestos/111?year=${year}&quarter=1`} title="Retenciones" text="Lo que retienes a un profesional al pagarle." />
+        <ModelLink href={`/impuestos/349?year=${year}&quarter=1`} title="Operaciones con la UE" text="Ventas y compras a empresas de la Unión Europea." />
       </div>
       <YearBoard year={year} />
     </div>

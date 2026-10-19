@@ -13,8 +13,10 @@ const groups = [
       { href: '/panel', label: 'Panel', roles: ['ADMIN', 'GESTOR'] },
       { href: '/contactos', label: 'Contactos', roles: ['ADMIN', 'GESTOR'] },
       { href: '/facturas', label: 'Facturas emitidas', roles: ['ADMIN', 'GESTOR'] },
+      { href: '/presupuestos', label: 'Presupuestos', roles: ['ADMIN', 'GESTOR'] },
       { href: '/recibidas', label: 'Facturas recibidas', roles: ['ADMIN', 'GESTOR', 'FACTURAS'] },
       { href: '/gastos', label: 'Gastos', roles: ['ADMIN', 'GESTOR', 'FACTURAS'] },
+      { href: '/ocr', label: 'OCR', roles: ['ADMIN', 'GESTOR', 'FACTURAS'] },
     ],
   },
   {
@@ -58,7 +60,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen md:grid md:h-dvh md:grid-cols-[260px_1fr] md:overflow-hidden">
       <aside className="flex flex-col bg-pine text-[#f3f0e8] md:h-dvh md:overflow-y-auto">
         <div className="px-5 pb-4 pt-6">
-          <p className="font-serif text-[1.7rem] leading-none">Norte Luz</p>
+          <p className="font-serif text-[1.7rem] leading-none">EnerFactura</p>
           <p className="mt-2 text-[0.68rem] uppercase tracking-[0.2em] text-gold">Servicios energéticos</p>
         </div>
         <nav className="flex gap-4 overflow-x-auto px-3 pb-4 md:block md:flex-1 md:space-y-5 md:overflow-visible md:px-3">
@@ -92,9 +94,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="flex min-h-0 min-w-0 flex-col md:h-dvh">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line/80 bg-white/55 px-6 py-4 backdrop-blur">
+        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line/80 bg-white/55 px-4 py-4 backdrop-blur sm:px-6">
           <div>
-            <p className="text-sm font-medium text-pine">{here?.label ?? 'Norte Luz'}</p>
+            <p className="text-sm font-medium text-pine">{here?.label ?? 'EnerFactura'}</p>
             <p className="text-xs text-mist">Datos de demostración. Se reinician con el seed.</p>
           </div>
           <div className="flex items-center gap-3 text-sm">
@@ -120,7 +122,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="min-h-0 flex-1 overflow-auto px-6 py-4 md:py-5">{children}</main>
+        <main className={`min-h-0 flex-1 px-4 sm:px-6 ${pathname === '/panel' ? 'overflow-hidden py-3' : 'overflow-auto py-4 md:py-5'}`}>{children}</main>
       </div>
     </div>
   )
@@ -146,6 +148,26 @@ function BackArrow() {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+export function RowViewLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className="inline-grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-line bg-white text-mist transition hover:border-gold hover:text-pine"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    </Link>
   )
 }
 
@@ -193,7 +215,7 @@ export function PageTitle({
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
         {backFallback ? <BackButton fallback={backFallback} /> : null}
-        <h1 className="font-serif text-4xl text-pine">{title}</h1>
+        <h1 className="font-serif text-3xl text-pine sm:text-4xl">{title}</h1>
         {text ? <p className="mt-1 max-w-2xl text-sm text-mist">{text}</p> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
@@ -267,8 +289,9 @@ function labels(status: string) {
 }
 
 function toneClass(status: string) {
+  if (status === 'RECTIFICATIVA' || status === 'RECTIFICADA') return 'bg-[#e8ece9] text-pine'
   if (status === 'PAGO_PARCIAL') return 'bg-[#f8f1df] text-[#7a5b1e]'
-  if (status === 'COBRADA' || status === 'PAGADA') return 'bg-[#e5f2eb] text-moss'
+  if (status === 'COBRADA' || status === 'PAGADA' || status === 'CONVERTIDO') return 'bg-[#e5f2eb] text-moss'
   if (status === 'VENCIDA') return 'bg-[#f8e8e6] text-clay'
   if (status === 'BORRADOR') return 'bg-paper text-mist'
   return 'bg-[#f8f1df] text-[#7a5b1e]'

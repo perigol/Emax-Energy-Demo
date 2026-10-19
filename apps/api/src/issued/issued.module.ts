@@ -6,14 +6,16 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Res,
 } from '@nestjs/common'
 import { IsArray, IsBoolean, IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, ValidateNested } from 'class-validator'
 import { Type } from 'class-transformer'
 import type { Response } from 'express'
-import PDFDocument from 'pdfkit'
 import { Prisma } from '@prisma/client'
+import { renderInvoicePdf } from './invoice-pdf'
+import { loadRectifiedLookup, presentIssuedInvoice } from './present'
 import { asNumber, cents, invoiceCode, money, utcDay } from '../common/money'
 import { PrismaService } from '../prisma/prisma.service'
 import { Require } from '../auth/decorators'
@@ -101,50 +103,6 @@ function buildLines(lines: LineDto[], operation: Operation) {
   })
 }
 
-function presentInvoice(invoice: {
-  issueDate: Date
-  dueDate: Date | null
-  base: { toString(): string }
-  vat: { toString(): string }
-  irpfWithheld: { toString(): string }
-  total: { toString(): string }
-  paidAmount: { toString(): string }
-  series: string | null
-  number: number | null
-  lines?: Array<{ quantity: { toString(): string }; unitPrice: { toString(): string }; base: { toString(): string }; vatAmount: { toString(): string } }>
-  payments?: Array<{ amount: { toString(): string }; date: Date }>
-  contact?: { name: string }
-  [key: string]: unknown
-}) {
-  const today = new Date().toISOString().slice(0, 10)
-  const due = invoice.dueDate ? invoice.dueDate.toISOString().slice(0, 10) : null
-  const status = invoice.status as string
-  return {
-    ...invoice,
-    code: invoiceCode(invoice.series, invoice.issueDate, invoice.number),
-    issueDate: invoice.issueDate.toISOString().slice(0, 10),
-    dueDate: due,
-    base: asNumber(invoice.base),
-    vat: asNumber(invoice.vat),
-    irpfWithheld: asNumber(invoice.irpfWithheld),
-    total: asNumber(invoice.total),
-    paidAmount: asNumber(invoice.paidAmount),
-    displayStatus: status === 'EMITIDA' && due && due < today ? 'VENCIDA' : status,
-    lines: invoice.lines?.map((line) => ({
-      ...line,
-      quantity: asNumber(line.quantity),
-      unitPrice: asNumber(line.unitPrice),
-      base: asNumber(line.base),
-      vatAmount: asNumber(line.vatAmount),
-    })),
-    payments: invoice.payments?.map((payment) => ({
-      ...payment,
-      amount: asNumber(payment.amount),
-      date: payment.date.toISOString().slice(0, 10),
-    })),
-  }
-}
-
 @Controller('issued-invoices')
 export class IssuedController {
   constructor(
@@ -159,13 +117,17 @@ export class IssuedController {
       include: { contact: true },
       orderBy: [{ issueDate: 'desc' }, { number: 'desc' }],
     })
-    return rows.map((row) => presentInvoice(row))
+    const lookup = await loadRectifiedLookup(
+      this.prisma,
+      rows.map((row) => row.id),
+    )
+    return rows.map((row) => presentIssuedInvoice(row, lookup))
   }
 
   @Require('issued')
   @Get(':id')
   async one(@Param('id') id: string) {
-    return presentInvoice(await this.load(id))
+    return this.presentOne(await this.load(id))
   }
 
   @Require('issued')
@@ -197,7 +159,7 @@ export class IssuedController {
         },
         include: { contact: true, lines: true, payments: true },
       })
-      return presentInvoice(draft)
+      return this.presentOne(draft)
     }
     const issued = await this.assignNumber((tx, number, series) =>
       tx.issuedInvoice.create({
@@ -217,7 +179,50 @@ export class IssuedController {
         include: { contact: true, lines: true, payments: true },
       }),
     )
-    return presentInvoice(issued)
+    return this.presentOne(issued)
+  }
+
+  @Require('issued')
+  @Patch(':id')
+  async update(@Param('id') id: string, @Body() body: CreateIssuedDto) {
+    const invoice = await this.load(id)
+    if (invoice.rectifiesId) throw new BadRequestException('Una rectificativa no se edita. Corrige la factura original.')
+    if (asNumber(invoice.paidAmount) > 0) {
+      throw new BadRequestException('No se puede editar una factura con cobros registrados')
+    }
+    const lookup = await loadRectifiedLookup(this.prisma, [id])
+    if (lookup.originalIds.has(id)) {
+      throw new BadRequestException('Esta factura ya tiene una rectificativa')
+    }
+    asDate(body.issueDate, 'La fecha')
+    if (body.dueDate) asDate(body.dueDate, 'El vencimiento')
+    const contact = await this.prisma.contact.findUnique({ where: { id: body.contactId } })
+    if (!contact) throw new NotFoundException('Contacto no encontrado')
+    const lines = buildLines(body.lines, body.operation)
+    const base = money(lines.reduce((sum, line) => sum + line.base, 0))
+    const vat = money(lines.reduce((sum, line) => sum + line.vatAmount, 0))
+    const total = money(base + vat)
+    fitMoney(base, 'La base')
+    fitMoney(vat, 'El IVA')
+    fitMoney(total, 'El total')
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.issuedInvoiceLine.deleteMany({ where: { invoiceId: id } })
+      return tx.issuedInvoice.update({
+        where: { id },
+        data: {
+          contactId: contact.id,
+          issueDate: utcDay(body.issueDate),
+          dueDate: body.dueDate ? utcDay(body.dueDate) : null,
+          operation: body.operation,
+          base,
+          vat,
+          total,
+          lines: { create: lines },
+        },
+        include: { contact: true, lines: true, payments: true },
+      })
+    })
+    return this.presentOne(updated)
   }
 
   @Require('issued')
@@ -232,7 +237,7 @@ export class IssuedController {
         include: { contact: true, lines: true, payments: true },
       }),
     )
-    return presentInvoice(issued)
+    return this.presentOne(issued)
   }
 
   @Require('issued')
@@ -240,7 +245,7 @@ export class IssuedController {
   async pay(@Param('id') id: string, @Body() body: PaymentDto) {
     asDate(body.date, 'La fecha')
     await this.payments.collectIssued(id, body.amount, body.date, body.bankAccountId)
-    return presentInvoice(await this.load(id))
+    return this.presentOne(await this.load(id))
   }
 
   @Require('issued')
@@ -280,7 +285,7 @@ export class IssuedController {
         include: { contact: true, lines: true, payments: true },
       }),
     )
-    return presentInvoice(created)
+    return this.presentOne(created)
   }
 
   @Require('issued')
@@ -289,7 +294,7 @@ export class IssuedController {
     const invoice = await this.load(id)
     const org = await this.prisma.organization.findFirst()
     if (!org) throw new NotFoundException('Falta la configuración de la empresa')
-    const buffer = await renderPdf(invoice, org)
+    const buffer = await renderInvoicePdf(invoice, org)
     const code = invoiceCode(invoice.series, invoice.issueDate, invoice.number)
     response.setHeader('Content-Type', 'application/pdf')
     response.setHeader('Content-Disposition', `inline; filename="${code}.pdf"`)
@@ -305,6 +310,11 @@ export class IssuedController {
     }
     await this.prisma.issuedInvoice.delete({ where: { id } })
     return { ok: true }
+  }
+
+  private async presentOne(invoice: Awaited<ReturnType<IssuedController['load']>>) {
+    const lookup = await loadRectifiedLookup(this.prisma, [invoice.id])
+    return presentIssuedInvoice(invoice, lookup)
   }
 
   private async load(id: string) {
@@ -329,78 +339,6 @@ export class IssuedController {
       return write(tx, updated.nextNumber - 1, org.invoiceSeries)
     })
   }
-}
-
-const euro = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })
-
-function renderPdf(
-  invoice: Awaited<ReturnType<IssuedController['load']>> extends infer T ? T : never,
-  org: { legalName: string; nif: string; fiscalAddress: string; logoData: Uint8Array | null; logoMime: string | null },
-) {
-  const sign = invoice.rectifiesId ? -1 : 1
-  return new Promise<Buffer>((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 48 })
-    const chunks: Buffer[] = []
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk))
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
-    doc.on('error', reject)
-    if (org.logoData && org.logoMime && org.logoMime !== 'image/webp') {
-      try {
-        doc.image(Buffer.from(org.logoData), 48, 42, { fit: [88, 48] })
-      } catch {
-        // Un logo ilegible no impide emitir el PDF.
-      }
-    }
-    doc.fillColor('#1e2a24').font('Times-Bold').fontSize(20).text('Norte Luz', 150, 48)
-    doc.font('Times-Roman').fontSize(10).fillColor('#3d4a43').text(org.legalName, 150, 74)
-    doc.text(`NIF ${org.nif}`, 150, 88)
-    doc.text(org.fiscalAddress, 150, 102)
-    doc.moveDown()
-    const code = invoiceCode(invoice.series, invoice.issueDate, invoice.number)
-    doc.fillColor('#1c1915').font('Times-Bold').fontSize(16).text(
-      invoice.rectifiesId ? `Factura rectificativa ${code}` : `Factura ${code}`,
-      48,
-      150,
-    )
-    doc.font('Times-Roman').fontSize(11).text(`Fecha ${invoice.issueDate.toISOString().slice(0, 10)}`)
-    doc.moveDown()
-    doc.font('Times-Bold').text('Cliente')
-    doc.font('Times-Roman').text(invoice.contact.name)
-    doc.text(invoice.contact.nif)
-    if (invoice.contact.address) doc.text(invoice.contact.address)
-    doc.moveDown()
-    const top = doc.y + 8
-    doc.font('Times-Bold').fontSize(10)
-    doc.text('Concepto', 48, top)
-    doc.text('Base', 330, top, { width: 70, align: 'right' })
-    doc.text('IVA', 410, top, { width: 40, align: 'right' })
-    doc.text('Cuota', 460, top, { width: 80, align: 'right' })
-    doc.moveTo(48, top + 16).lineTo(547, top + 16).strokeColor('#c4a35a').stroke()
-    let y = top + 26
-    doc.font('Times-Roman').fillColor('#1c1915')
-    for (const line of invoice.lines) {
-      doc.text(line.concept, 48, y, { width: 270 })
-      doc.text(euro.format(sign * asNumber(line.base)), 330, y, { width: 70, align: 'right' })
-      doc.text(`${line.vatRate} %`, 410, y, { width: 40, align: 'right' })
-      doc.text(euro.format(sign * asNumber(line.vatAmount)), 460, y, { width: 80, align: 'right' })
-      y += 22
-    }
-    y += 12
-    doc.font('Times-Bold')
-    doc.text(`Base ${euro.format(sign * asNumber(invoice.base))}`, 330, y, { width: 210, align: 'right' })
-    doc.text(`IVA ${euro.format(sign * asNumber(invoice.vat))}`, 330, y + 16, { width: 210, align: 'right' })
-    doc.fontSize(13).text(`Total ${euro.format(sign * asNumber(invoice.total))}`, 330, y + 36, {
-      width: 210,
-      align: 'right',
-    })
-    doc.font('Times-Roman').fontSize(9).fillColor('#6b645b').text(
-      'Documento de demostración. No es una factura presentada ante la Agencia Tributaria.',
-      48,
-      760,
-      { width: 500 },
-    )
-    doc.end()
-  })
 }
 
 export function issuedRemaining(total: number, paid: number) {

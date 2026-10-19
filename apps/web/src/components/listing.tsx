@@ -101,7 +101,7 @@ export function Listing<T>({
       ) : null}
       {visible.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="book spread">
+          <table className="book spread min-w-[44rem]">
             <thead className="border-b border-line text-mist">
               <tr>
                 {columns.map((item) => {

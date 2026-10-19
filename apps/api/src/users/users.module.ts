@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -94,5 +95,21 @@ export class UsersController {
       },
       select: { id: true, name: true, email: true, role: true },
     })
+  }
+
+  @Require('users')
+  @Delete(':id')
+  async remove(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    if (actor.sub === id) {
+      throw new BadRequestException('No puedes eliminar tu propia cuenta')
+    }
+    const user = await this.prisma.user.findUnique({ where: { id } })
+    if (!user) throw new NotFoundException('Usuario no encontrado')
+    if (user.role === 'ADMIN') {
+      const admins = await this.prisma.user.count({ where: { role: 'ADMIN' } })
+      if (admins <= 1) throw new BadRequestException('Tiene que quedar al menos un administrador')
+    }
+    await this.prisma.user.delete({ where: { id } })
+    return { ok: true }
   }
 }

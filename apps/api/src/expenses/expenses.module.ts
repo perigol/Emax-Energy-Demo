@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -110,6 +112,18 @@ export class ExpensesController {
     const expense = await this.prisma.expense.findUnique({ where: { id }, include: { payments: true } })
     if (!expense) throw new NotFoundException('Gasto no encontrado')
     return present(expense)
+  }
+
+  @Require('expenses', 'delete')
+  @Delete(':id')
+  async remove(@Param('id') id: string) {
+    const expense = await this.prisma.expense.findUnique({ where: { id }, include: { payments: true } })
+    if (!expense) throw new NotFoundException('Gasto no encontrado')
+    if (asNumber(expense.paidAmount) > 0 || expense.payments.length > 0) {
+      throw new BadRequestException('No se puede borrar un gasto con pagos registrados')
+    }
+    await this.prisma.expense.delete({ where: { id } })
+    return { ok: true }
   }
 
   @Require('expenses')

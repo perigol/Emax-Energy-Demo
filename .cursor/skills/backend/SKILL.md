@@ -1,6 +1,6 @@
 ---
 name: backend
-description: Implementa la API NestJS, Prisma y el seed de Norte Luz. Usar al modificar apps/api, endpoints, DTOs, facturas, bancos o el mapeo hacia packages/tax.
+description: Implementa la API NestJS, Prisma y el seed de EnerFactura. Usar al modificar apps/api, endpoints, DTOs, facturas, bancos o el mapeo hacia packages/tax.
 ---
 
 # Backend
@@ -28,4 +28,4 @@ Cada emitida, recibida y gasto contabilizable se convierte en `TaxDocument`. Los
 
 ## Seed
 
-`prisma/seed.ts` carga Norte Luz Servicios Energéticos S.L., los tres usuarios y el T1 2026 definido en la skill fiscal, más documentos cortos en T2, T3 y T4. Si ya hay usuarios, no pisa los datos, salvo `pnpm db:seed -- --force` o `SEED_FORCE=true`.
+`prisma/seed.ts` carga EnerFactura, los tres usuarios y el T1 2026 definido en la skill fiscal, más documentos cortos en T2, T3 y T4. Si ya hay usuarios, no pisa los datos, salvo `pnpm db:seed -- --force` o `SEED_FORCE=true`.

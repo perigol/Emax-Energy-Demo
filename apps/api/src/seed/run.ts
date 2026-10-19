@@ -42,7 +42,7 @@ export async function runSeed(options?: { force?: boolean; prisma?: PrismaClient
     const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10)
     await prisma.organization.create({
       data: {
-        legalName: 'Norte Luz Servicios Energéticos S.L.',
+        legalName: 'EnerFactura',
         nif: 'B66521089',
         fiscalAddress: 'Carrer de Provença 312, 08037 Barcelona',
         vatRegime: 'GENERAL',

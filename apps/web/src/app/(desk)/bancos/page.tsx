@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
-import { euro, fecha } from '@/lib/format'
+import { euro, fecha, todayIso } from '@/lib/format'
 import { Listing } from '@/components/listing'
 import { reason, useToast } from '@/lib/toast'
 import { Button, Card, Empty, ErrorNote, Field, PageTitle, control } from '@/components/shell'
@@ -139,6 +139,26 @@ export default function BanksPage() {
     }
   }
 
+  async function importCsv(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setNotice('')
+    const form = new FormData(event.currentTarget)
+    const accountId = String(form.get('accountId') || '')
+    form.delete('accountId')
+    try {
+      const result = await api<ImportResult>(`/banks/accounts/${accountId}/csv`, { method: 'POST', body: form })
+      event.currentTarget.reset()
+      describeImport(result)
+      toast(`${result.imported} apuntes nuevos`)
+      load()
+    } catch (caught) {
+      const message = reason(caught, 'No se pudo leer el CSV')
+      setError(message)
+      toast(message, 'bad')
+    }
+  }
+
   async function importSample() {
     setError('')
     setNotice('')
@@ -198,6 +218,16 @@ export default function BanksPage() {
               <Button type="button" tone="ghost" onClick={() => void importSample()}>Cargar extracto de ejemplo</Button>
             </div>
             <p className="text-sm text-mist">El de ejemplo entra en la cuenta de CaixaBank y se puede conciliar con cobros y pagos que aún no tienen apunte.</p>
+          </form>
+          <form onSubmit={(event) => void importCsv(event)} className="mt-4 grid gap-3 border-t border-line/70 pt-4">
+            <Field label="CSV" hint="Columnas fecha, concepto e importe. Un importe negativo es un cargo. Ejemplo: 19/10/2026;Cobro;1.250,50">
+              <select className={control} name="accountId" required defaultValue="">
+                <option value="" disabled>Elige la cuenta</option>
+                {data?.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+              </select>
+            </Field>
+            <input className={control} type="file" name="file" accept=".csv,text/csv" required />
+            <Button type="submit">Importar CSV</Button>
           </form>
         </Card>
       </div>
@@ -263,7 +293,7 @@ export default function BanksPage() {
               />
             )}
             <form onSubmit={(event) => void addMovement(account.id, event)} className="grid gap-2 border-t border-line px-5 py-4 md:grid-cols-[140px_1fr_140px_auto]">
-              <input className={control} type="date" name="date" required min="1990-01-01" max="2100-12-31" defaultValue="2026-04-02" />
+              <input className={control} type="date" name="date" required min="1990-01-01" max="2100-12-31" defaultValue={todayIso()} />
               <input className={control} name="concept" placeholder="Concepto" required maxLength={240} />
               <input className={control} name="amount" type="number" min="-9999999999.99" max="9999999999.99" step="0.01" placeholder="Importe" required />
               <Button type="submit" tone="ghost">Apuntar</Button>

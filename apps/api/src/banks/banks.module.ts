@@ -19,6 +19,7 @@ import { PrismaService } from '../prisma/prisma.service'
 import { Require } from '../auth/decorators'
 import { bankFromIban } from './spanish-banks'
 import { compactIban, isSpanishIban } from './iban'
+import { parseBankCsv } from './csv'
 import { decodeStatement, Norma43File, parseNorma43, sampleNorma43 } from './norma43'
 
 class AccountDto {
@@ -141,6 +142,42 @@ export class BanksController {
     return this.prisma.bankAccount.create({
       data: { name: asText(body.name, 'El nombre', LIMIT.name), iban },
     })
+  }
+
+  @Require('banks')
+  @Post('accounts/:id/csv')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 2 * 1024 * 1024 } }))
+  async csv(@Param('id') id: string, @UploadedFile() file?: { buffer: Buffer }) {
+    const account = await this.prisma.bankAccount.findUnique({ where: { id } })
+    if (!account) throw new NotFoundException('Cuenta no encontrada')
+    if (!file?.buffer?.length) throw new BadRequestException('Adjunta un CSV')
+    const movements = parseBankCsv(file.buffer.toString('utf8'))
+    const known = new Set(
+      (
+        await this.prisma.bankMovement.findMany({
+          where: { accountId: account.id, reference: { in: movements.map((movement) => movement.reference) } },
+          select: { reference: true },
+        })
+      ).map((movement) => movement.reference),
+    )
+    const fresh = movements.filter((movement) => !known.has(movement.reference))
+    if (fresh.length > 0) {
+      await this.prisma.bankMovement.createMany({
+        data: fresh.map((movement) => ({
+          accountId: account.id,
+          date: utcDay(movement.date),
+          concept: movement.concept,
+          amount: money(movement.amount),
+          reference: movement.reference,
+        })),
+      })
+    }
+    return {
+      imported: fresh.length,
+      skipped: movements.length - fresh.length,
+      warnings: [],
+      accounts: [{ name: account.name, bankName: null as string | null }],
+    }
   }
 
   @Require('banks')

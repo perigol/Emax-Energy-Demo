@@ -11,6 +11,7 @@ import { HealthController } from './http'
 import { IssuedController } from './issued/issued.module'
 import { PaymentsService } from './payments/payments.service'
 import { PrismaModule } from './prisma/prisma.module'
+import { QuotesController } from './quotes/quotes.module'
 import { ReceivedController } from './received/received.module'
 import { ServicesController } from './services/services.module'
 import { SettingsController } from './settings/settings.module'
@@ -25,6 +26,7 @@ import { UsersController } from './users/users.module'
     ContactsController,
     ServicesController,
     IssuedController,
+    QuotesController,
     ReceivedController,
     ExpensesController,
     BanksController,

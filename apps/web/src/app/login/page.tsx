@@ -43,7 +43,7 @@ export default function LoginPage() {
       <section className="relative hidden flex-col justify-between overflow-hidden bg-pine px-12 py-12 text-[#f3f0e8] lg:flex">
         <div className="pointer-events-none absolute -right-24 top-0 h-72 w-72 rounded-full bg-gold/10" />
         <div>
-          <p className="text-xs uppercase tracking-[0.22em] text-gold">Norte Luz</p>
+          <p className="text-xs uppercase tracking-[0.22em] text-gold">EnerFactura</p>
           <p className="mt-3 text-sm text-[#d9d3c7]">Muestra preparada para EMAX Energía</p>
           <div className="mt-8 h-px w-16 bg-gold" />
           <h1 className="mt-8 max-w-md font-serif text-5xl leading-tight">
@@ -60,7 +60,7 @@ export default function LoginPage() {
       <section className="grid place-items-center px-6 py-12">
         <form onSubmit={submit} className="w-full max-w-md space-y-5 rounded-2xl border border-white/80 bg-white p-6 shadow-card sm:p-8">
           <div>
-            <p className="font-serif text-3xl text-pine lg:hidden">Norte Luz</p>
+            <p className="font-serif text-3xl text-pine lg:hidden">EnerFactura</p>
             <p className="text-sm text-gold">Muestra preparada para EMAX Energía</p>
             <h2 className="mt-2 font-serif text-3xl text-pine">Entrar</h2>
             <p className="mt-1 text-sm text-mist">La contraseña de los tres accesos es demo1234.</p>

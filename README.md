@@ -1,4 +1,4 @@
-# Norte Luz
+# EnerFactura
 
 Muestra de contabilidad y facturación española para una pyme de servicios energéticos. Next.js muestra los datos. NestJS y Postgres los guardan. Los modelos 303, 111 y 349 se calculan en `packages/tax` a partir de las facturas, no de cifras fijas en la pantalla.
 

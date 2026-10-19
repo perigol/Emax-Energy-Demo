@@ -4,6 +4,7 @@ import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsString, Max, MaxLengt
 import { LIMIT, taxId } from '../common/check'
 import { requireVies, ViesCheck } from './vies'
 import { asNumber } from '../common/money'
+import { loadRectifiedLookup, presentIssuedInvoice } from '../issued/present'
 import { PrismaService } from '../prisma/prisma.service'
 import { Require } from '../auth/decorators'
 
@@ -75,11 +76,25 @@ export class ContactsController {
   async one(@Param('id') id: string) {
     const contact = await this.prisma.contact.findUnique({ where: { id } })
     if (!contact) throw new NotFoundException('Contacto no encontrado')
-    const [issued, received] = await Promise.all([
+    const [issuedRows, received] = await Promise.all([
       this.prisma.issuedInvoice.findMany({
         where: { contactId: id },
         orderBy: { issueDate: 'desc' },
-        select: { id: true, series: true, number: true, issueDate: true, status: true, total: true, operation: true },
+        select: {
+          id: true,
+          series: true,
+          number: true,
+          issueDate: true,
+          dueDate: true,
+          status: true,
+          total: true,
+          operation: true,
+          rectifiesId: true,
+          base: true,
+          vat: true,
+          irpfWithheld: true,
+          paidAmount: true,
+        },
       }),
       this.prisma.receivedInvoice.findMany({
         where: { supplierId: id },
@@ -87,9 +102,13 @@ export class ContactsController {
         select: { id: true, number: true, date: true, status: true, total: true, operation: true },
       }),
     ])
+    const lookup = await loadRectifiedLookup(
+      this.prisma,
+      issuedRows.map((row) => row.id),
+    )
     return {
       ...present(contact),
-      issued: issued.map((row) => ({ ...row, total: asNumber(row.total), issueDate: row.issueDate.toISOString().slice(0, 10) })),
+      issued: issuedRows.map((row) => presentIssuedInvoice(row, lookup)),
       received: received.map((row) => ({ ...row, total: asNumber(row.total), date: row.date.toISOString().slice(0, 10) })),
     }
   }
@@ -117,12 +136,13 @@ export class ContactsController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     await this.ensure(id)
-    const [issued, received] = await Promise.all([
+    const [issued, received, quotes] = await Promise.all([
       this.prisma.issuedInvoice.count({ where: { contactId: id } }),
       this.prisma.receivedInvoice.count({ where: { supplierId: id } }),
+      this.prisma.quote.count({ where: { contactId: id } }),
     ])
-    if (issued + received > 0) {
-      throw new BadRequestException('Este contacto tiene facturas y no se puede borrar')
+    if (issued + received + quotes > 0) {
+      throw new BadRequestException('Este contacto tiene facturas o presupuestos y no se puede borrar')
     }
     await this.prisma.contact.delete({ where: { id } })
     return { ok: true }

@@ -63,7 +63,7 @@ export function taxId(value: string): string {
   const country = compact.slice(0, 2)
   const body = compact.slice(2)
   if (EU_VAT.has(country) && country !== 'ES' && /^[A-Z0-9]{2,12}$/.test(body)) return compact
-  throw new BadRequestException('El NIF o el NIF-IVA no es válido. Revisa la letra o el dígito de control.')
+  throw new BadRequestException(`«${compact}» no es un NIF válido. La letra o el dígito de control no cuadran.`)
 }
 
 function isSpanishId(value: string): boolean {

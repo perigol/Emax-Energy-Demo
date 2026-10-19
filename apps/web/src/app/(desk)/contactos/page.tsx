@@ -7,17 +7,12 @@ import { kindLabel } from '@/lib/format'
 import { Listing } from '@/components/listing'
 import { CountrySelect } from '@/lib/countries'
 import { reason, useToast } from '@/lib/toast'
+import {
+  ContactRowActions,
+  EditContactModal,
+  type ContactListRow,
+} from '@/components/contact-list-tools'
 import { Button, Card, Empty, ErrorNote, Field, PageTitle, control } from '@/components/shell'
-
-interface Contact {
-  id: string
-  name: string
-  nif: string
-  country: string
-  vatNumber: string | null
-  kind: string
-  isProfessional: boolean
-}
 
 const empty = {
   name: '',
@@ -31,16 +26,33 @@ const empty = {
 }
 
 export default function ContactsPage() {
-  const [rows, setRows] = useState<Contact[]>([])
+  const [rows, setRows] = useState<ContactListRow[]>([])
   const [form, setForm] = useState(empty)
   const [error, setError] = useState('')
   const [open, setOpen] = useState(false)
+  const [edit, setEdit] = useState<ContactListRow | null>(null)
   const toast = useToast()
 
   function load() {
-    api<Contact[]>('/contacts').then(setRows).catch((caught: Error) => setError(caught.message))
+    api<ContactListRow[]>('/contacts').then(setRows).catch((caught: Error) => setError(caught.message))
   }
   useEffect(load, [])
+
+  function mergeRow(updated: ContactListRow) {
+    setRows((current) => current.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)))
+  }
+
+  async function removeRow(row: ContactListRow) {
+    const ok = window.confirm(`¿Eliminar a ${row.name}? Solo se puede si no tiene facturas.`)
+    if (!ok) return
+    try {
+      await api(`/contacts/${row.id}`, { method: 'DELETE' })
+      setRows((current) => current.filter((item) => item.id !== row.id))
+      toast('Contacto eliminado')
+    } catch (caught) {
+      toast(reason(caught, 'No se pudo eliminar'), 'bad')
+    }
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -79,8 +91,8 @@ export default function ContactsPage() {
             </Field>
             <Field label="Relación" required>
               <select className={control} value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                <option value="CLIENT">Me paga</option>
-                <option value="SUPPLIER">Le pago</option>
+                <option value="CLIENT">Cliente</option>
+                <option value="SUPPLIER">Proveedor</option>
                 <option value="BOTH">Las dos cosas</option>
               </select>
             </Field>
@@ -108,9 +120,24 @@ export default function ContactsPage() {
             { key: 'nif', label: 'NIF', value: (row) => row.nif, cell: (row) => row.nif },
             { key: 'kind', label: 'Relación', value: (row) => `${kindLabel[row.kind]}${row.isProfessional ? ' profesional' : ''}`, cell: (row) => <>{kindLabel[row.kind]}{row.isProfessional ? ' · profesional' : ''}</> },
             { key: 'country', label: 'País', value: (row) => row.country, cell: (row) => row.country },
+            {
+              key: 'actions',
+              label: 'Acciones',
+              sortable: false,
+              cell: (row) => (
+                <ContactRowActions
+                  contact={row}
+                  onEdit={() => setEdit(row)}
+                  onDelete={() => void removeRow(row)}
+                />
+              ),
+            },
           ]}
         />
       )}
+      {edit ? (
+        <EditContactModal contact={edit} onClose={() => setEdit(null)} onSuccess={mergeRow} />
+      ) : null}
     </div>
   )
 }

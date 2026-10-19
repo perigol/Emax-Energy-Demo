@@ -1,6 +1,6 @@
 ---
 name: seguridad
-description: Exige autenticación, roles y límites de la demo pública de Norte Luz. Usar al tocar login, guards, usuarios, adjuntos, CORS o el seed.
+description: Exige autenticación, roles y límites de la demo pública de EnerFactura. Usar al tocar login, guards, usuarios, adjuntos, CORS o el seed.
 ---
 
 # Seguridad
