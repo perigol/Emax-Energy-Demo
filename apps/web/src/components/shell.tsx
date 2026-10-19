@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from '@/lib/session'
 import { roleLabel, statusLabel } from '@/lib/format'
 
@@ -36,14 +36,40 @@ const groups = [
   },
 ]
 
+type NavGroup = {
+  label: string
+  links: { href: string; label: string; roles: string[] }[]
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const { user, ready, logout } = useSession()
   const pathname = usePathname()
   const router = useRouter()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const closeRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (ready && !user) router.replace('/login')
   }, [ready, user, router])
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    closeRef.current?.focus()
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = previous
+    }
+  }, [menuOpen])
 
   if (!ready || !user) {
     return <div className="grid min-h-screen place-items-center text-mist">Abriendo el libro…</div>
@@ -57,50 +83,66 @@ export function Shell({ children }: { children: React.ReactNode }) {
     .find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))
 
   return (
-    <div className="min-h-screen md:grid md:h-dvh md:grid-cols-[260px_1fr] md:overflow-hidden">
-      <aside className="flex flex-col bg-pine text-[#f3f0e8] md:h-dvh md:overflow-y-auto">
+    <div className="min-h-screen lg:grid lg:h-dvh lg:grid-cols-[260px_1fr] lg:overflow-hidden">
+      <aside className="hidden bg-pine text-[#f3f0e8] lg:flex lg:h-dvh lg:flex-col lg:overflow-y-auto">
         <div className="px-5 pb-4 pt-6">
-          <p className="font-serif text-[1.7rem] leading-none">EnerFactura</p>
-          <p className="mt-2 text-[0.68rem] uppercase tracking-[0.2em] text-gold">Servicios energéticos</p>
+          <Brand />
         </div>
-        <nav className="flex gap-4 overflow-x-auto px-3 pb-4 md:block md:flex-1 md:space-y-5 md:overflow-visible md:px-3">
-          {visibleGroups.map((group) => (
-            <div key={group.label} className="flex shrink-0 gap-1 md:block">
-              <p className="hidden px-3 pb-1 text-[0.65rem] uppercase tracking-[0.16em] text-gold/80 md:block">
-                {group.label}
-              </p>
-              {group.links.map((link) => {
-                const active = pathname === link.href || pathname.startsWith(`${link.href}/`)
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`block whitespace-nowrap rounded-md px-3 py-2 text-sm md:border-l-2 ${
-                      active
-                        ? 'bg-white/10 text-white md:border-gold'
-                        : 'text-[#d9d3c7] hover:bg-white/5 md:border-transparent'
-                    }`}
-                  >
-                    {link.label}
-                  </Link>
-                )
-              })}
-            </div>
-          ))}
-        </nav>
-        <div className="mt-auto hidden border-t border-white/10 px-5 py-4 md:block">
-          <p className="text-sm font-medium">{user.name}</p>
-          <p className="text-xs text-[#d9d3c7]">{roleLabel[user.role]}</p>
-        </div>
+        <NavList groups={visibleGroups} pathname={pathname} />
+        <UserFoot name={user.name} role={user.role} />
       </aside>
-      <div className="flex min-h-0 min-w-0 flex-col md:h-dvh">
-        <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line/80 bg-white/55 px-4 py-4 backdrop-blur sm:px-6">
-          <div>
-            <p className="text-sm font-medium text-pine">{here?.label ?? 'EnerFactura'}</p>
-            <p className="text-xs text-mist">Datos de demostración. Se reinician con el seed.</p>
+      {menuOpen ? (
+        <div className="lg:hidden">
+          <button
+            type="button"
+            aria-label="Cierra el menú"
+            className="fixed inset-0 z-30 bg-ink/40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <aside
+            id="app-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menú"
+            className="fixed inset-y-0 left-0 z-40 flex w-[min(18.5rem,88vw)] flex-col bg-pine text-[#f3f0e8] shadow-card"
+          >
+            <div className="flex items-start justify-between gap-3 px-5 pb-4 pt-6">
+              <Brand />
+              <button
+                ref={closeRef}
+                type="button"
+                aria-label="Cierra el menú"
+                onClick={() => setMenuOpen(false)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-[#f3f0e8] hover:bg-white/10"
+              >
+                <CloseMark />
+              </button>
+            </div>
+            <NavList groups={visibleGroups} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
+            <UserFoot name={user.name} role={user.role} />
+          </aside>
+        </div>
+      ) : null}
+      <div className="flex min-h-0 min-w-0 flex-col lg:h-dvh">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line/80 bg-white/55 px-4 py-4 backdrop-blur sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-controls="app-menu"
+              aria-label={menuOpen ? 'Cierra el menú' : 'Abre el menú'}
+              onClick={() => setMenuOpen((open) => !open)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-md border border-line bg-white text-pine lg:hidden"
+            >
+              <MenuMark />
+            </button>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-pine">{here?.label ?? 'EnerFactura'}</p>
+              <p className="truncate text-xs text-mist">Datos de demostración. Se reinician con el seed.</p>
+            </div>
           </div>
-          <div className="flex items-center gap-3 text-sm">
-            <div className="text-right md:hidden">
+          <div className="flex shrink-0 items-center gap-3 text-sm">
+            <div className="hidden text-right sm:block lg:hidden">
               <p className="font-medium">{user.name}</p>
               <p className="text-mist">{roleLabel[user.role]}</p>
             </div>
@@ -122,9 +164,78 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className={`min-h-0 flex-1 px-4 sm:px-6 ${pathname === '/panel' ? 'overflow-hidden py-3' : 'overflow-auto py-4 md:py-5'}`}>{children}</main>
+        <main className={`min-h-0 flex-1 px-4 sm:px-6 ${pathname === '/panel' ? 'overflow-hidden py-3' : 'overflow-auto py-4 lg:py-5'}`}>{children}</main>
       </div>
     </div>
+  )
+}
+
+function Brand() {
+  return (
+    <div className="min-w-0">
+      <p className="font-serif text-[1.7rem] leading-none">EnerFactura</p>
+      <p className="mt-2 text-[0.68rem] uppercase tracking-[0.2em] text-gold">Servicios energéticos</p>
+    </div>
+  )
+}
+
+function NavList({
+  groups: navGroups,
+  pathname,
+  onNavigate,
+}: {
+  groups: NavGroup[]
+  pathname: string
+  onNavigate?: () => void
+}) {
+  return (
+    <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+      {navGroups.map((group) => (
+        <div key={group.label}>
+          <p className="px-3 pb-1 text-[0.65rem] uppercase tracking-[0.16em] text-gold/80">{group.label}</p>
+          {group.links.map((link) => {
+            const active = pathname === link.href || pathname.startsWith(`${link.href}/`)
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={active ? onNavigate : undefined}
+                className={`block rounded-md border-l-2 px-3 py-2 text-sm ${
+                  active ? 'border-gold bg-white/10 text-white' : 'border-transparent text-[#d9d3c7] hover:bg-white/5'
+                }`}
+              >
+                {link.label}
+              </Link>
+            )
+          })}
+        </div>
+      ))}
+    </nav>
+  )
+}
+
+function UserFoot({ name, role }: { name: string; role: keyof typeof roleLabel }) {
+  return (
+    <div className="mt-auto border-t border-white/10 px-5 py-4">
+      <p className="text-sm font-medium">{name}</p>
+      <p className="text-xs text-[#d9d3c7]">{roleLabel[role]}</p>
+    </div>
+  )
+}
+
+function MenuMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CloseMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
   )
 }
 
