@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { euro, fecha, operationLabel } from '@/lib/format'
 import { reason, useToast } from '@/lib/toast'
-import { Button, Card, ErrorNote, Field, PageTitle, Pill } from '@/components/shell'
+import { BackButton, Button, Card, ErrorNote, Field, PageTitle, Pill } from '@/components/shell'
 
 interface Invoice {
   id: string
@@ -60,13 +60,21 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  if (!invoice) return <p className="text-mist">{error || 'Cargando factura…'}</p>
+  if (!invoice) {
+    return (
+      <div>
+        <BackButton fallback="/facturas" />
+        <p className="text-mist">{error || 'Cargando factura…'}</p>
+      </div>
+    )
+  }
   const sign = invoice.rectifiesId ? -1 : 1
   const pending = Math.round((invoice.total - invoice.paidAmount) * 100) / 100
 
   return (
     <div>
       <PageTitle
+        backFallback="/facturas"
         title={invoice.rectifiesId ? `Rectificativa ${invoice.code}` : invoice.code}
         text={`${invoice.contact.name} · ${invoice.contact.nif} · ${operationLabel[invoice.operation]}`}
         action={<Pill status={invoice.displayStatus} />}

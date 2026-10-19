@@ -64,7 +64,11 @@ export default function NewInvoicePage() {
 
   return (
     <div>
-      <PageTitle title="Nueva factura" text="La vista previa es orientativa. El número y el total definitivos los calcula la API al guardar." />
+      <PageTitle
+        backFallback="/facturas"
+        title="Nueva factura"
+        text="La vista previa es orientativa. El número y el total definitivos los calcula la API al guardar."
+      />
       <Card>
         <form
           className="space-y-4"

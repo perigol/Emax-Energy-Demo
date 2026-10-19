@@ -49,7 +49,11 @@ export default function NewReceivedPage() {
 
   return (
     <div>
-      <PageTitle title="Subir factura recibida" text="PDF o imagen, hasta 2 MB. El IVA y la retención los calcula el servidor." />
+      <PageTitle
+        backFallback="/recibidas"
+        title="Subir factura recibida"
+        text="PDF o imagen, hasta 2 MB. El IVA y la retención los calcula el servidor."
+      />
       <Card>
         <form onSubmit={submit} className="grid gap-3 md:grid-cols-2">
           {canPick && contacts.length > 0 ? (

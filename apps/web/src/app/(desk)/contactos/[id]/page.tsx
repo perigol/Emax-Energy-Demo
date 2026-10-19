@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { api } from '@/lib/api'
 import { euro, fecha, kindLabel, operationLabel } from '@/lib/format'
-import { Card, PageTitle, Pill } from '@/components/shell'
+import { BackButton, Card, PageTitle, Pill } from '@/components/shell'
 
 interface Detail {
   id: string
@@ -30,12 +30,30 @@ export default function ContactDetailPage() {
     api<Detail>(`/contacts/${params.id}`).then(setData).catch((caught: Error) => setError(caught.message))
   }, [params.id])
 
-  if (error) return <p className="text-clay">{error}</p>
-  if (!data) return <p className="text-mist">Cargando contacto…</p>
+  if (error) {
+    return (
+      <div>
+        <BackButton fallback="/contactos" />
+        <p className="text-clay">{error}</p>
+      </div>
+    )
+  }
+  if (!data) {
+    return (
+      <div>
+        <BackButton fallback="/contactos" />
+        <p className="text-mist">Cargando contacto…</p>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <PageTitle title={data.name} text={`${kindLabel[data.kind]} · ${data.nif}${data.vatNumber ? ` · ${data.vatNumber}` : ''}`} />
+      <PageTitle
+        backFallback="/contactos"
+        title={data.name}
+        text={`${kindLabel[data.kind]} · ${data.nif}${data.vatNumber ? ` · ${data.vatNumber}` : ''}`}
+      />
       <Card className="mb-4 text-sm text-mist">
         <p>{data.address || 'Sin dirección'}</p>
         <p>{data.email || 'Sin correo'}</p>

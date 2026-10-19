@@ -141,10 +141,58 @@ function LogoutMark() {
   )
 }
 
-export function PageTitle({ title, text, action }: { title: string; text?: string; action?: React.ReactNode }) {
+function BackArrow() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M15 6l-6 6 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function BackButton({ fallback }: { fallback: string }) {
+  const router = useRouter()
+
+  function goBack() {
+    const ref = document.referrer
+    try {
+      if (ref && new URL(ref).origin === window.location.origin) {
+        router.back()
+        return
+      }
+    } catch {
+      /* referrer inválido */
+    }
+    router.push(fallback)
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label="Volver atrás"
+      className="mb-2 inline-flex items-center gap-1 rounded-md py-1 pr-2 text-sm text-mist transition hover:text-pine"
+      onClick={goBack}
+    >
+      <BackArrow />
+      Atrás
+    </button>
+  )
+}
+
+export function PageTitle({
+  title,
+  text,
+  action,
+  backFallback,
+}: {
+  title: string
+  text?: string
+  action?: React.ReactNode
+  backFallback?: string
+}) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
+        {backFallback ? <BackButton fallback={backFallback} /> : null}
         <h1 className="font-serif text-4xl text-pine">{title}</h1>
         {text ? <p className="mt-1 max-w-2xl text-sm text-mist">{text}</p> : null}
       </div>

@@ -47,6 +47,7 @@ function TaxModelPage() {
   return (
     <div>
       <PageTitle
+        backFallback="/impuestos"
         title={titles[modelo] || 'Modelo'}
         text={`${quarter}T ${year}. Las cifras salen de los documentos de ese trimestre.`}
         action={
