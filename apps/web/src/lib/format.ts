@@ -1,5 +1,14 @@
 export const euro = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' })
 
+/** Fecha local en ISO `yyyy-mm-dd` (p. ej. valores por defecto en formularios). */
+export function todayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 export function fecha(iso?: string | null) {
   if (!iso) return '—'
   const [year, month, day] = iso.slice(0, 10).split('-')

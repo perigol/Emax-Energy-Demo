@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
-import { euro, operationLabel } from '@/lib/format'
+import { euro, operationLabel, todayIso } from '@/lib/format'
 import { reason, useToast } from '@/lib/toast'
 import { Button, Card, ErrorNote, Field, PageTitle, control } from '@/components/shell'
 
@@ -14,15 +14,15 @@ interface LineRow extends Line { key: number }
 
 const blankLine = (): Line => ({ concept: 'Asesoramiento energético', quantity: 1, unitPrice: 100, vatRate: 21 })
 
-const lineGrid = 'grid gap-2 md:grid-cols-[minmax(0,1.4fr)_80px_120px_100px_40px]'
+const lineGrid = 'grid gap-2 md:grid-cols-[minmax(0,1fr)_80px_100px_96px_44px]'
 
 export default function NewInvoicePage() {
   const router = useRouter()
   const [contacts, setContacts] = useState<Contact[]>([])
   const [services, setServices] = useState<Service[]>([])
   const [contactId, setContactId] = useState('')
-  const [issueDate, setIssueDate] = useState('2026-02-15')
-  const [dueDate, setDueDate] = useState('2026-03-15')
+  const [issueDate, setIssueDate] = useState(todayIso)
+  const [dueDate, setDueDate] = useState(todayIso)
   const [operation, setOperation] = useState('NACIONAL')
   const lineKey = useRef(0)
   const makeRow = (line: Line): LineRow => ({ ...line, key: lineKey.current++ })
@@ -134,63 +134,119 @@ export default function NewInvoicePage() {
             </Field>
           ) : null}
           <Field label="Líneas de la factura" required>
-            <div className="space-y-2">
-              <div className={`${lineGrid} px-3 text-xs uppercase tracking-[0.14em] text-mist max-md:hidden`} aria-hidden>
-                <span>Concepto</span>
-                <span className="text-right">Cant.</span>
-                <span className="text-right">Precio unit.</span>
-                <span className="text-right">IVA</span>
-                <span />
+            <div className="overflow-hidden rounded-lg border border-line/70">
+              <table className="hidden w-full table-fixed border-collapse md:table">
+                <colgroup>
+                  <col />
+                  <col className="w-[80px]" />
+                  <col className="w-[100px]" />
+                  <col className="w-[96px]" />
+                  <col className="w-[44px]" />
+                </colgroup>
+                <thead>
+                  <tr className="text-xs uppercase tracking-[0.14em] text-mist">
+                    <th className="px-3 py-2 text-left font-normal">Concepto</th>
+                    <th className="px-2 py-2 text-center font-normal">Cant.</th>
+                    <th className="px-2 py-2 text-center font-normal">Precio unit.</th>
+                    <th className="px-2 py-2 text-center font-normal">IVA</th>
+                    <th className="px-1 py-2 font-normal" aria-hidden />
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((line, index) => (
+                    <tr key={line.key} className="border-t border-line/60 bg-paper">
+                      <td className="px-3 py-2 align-middle">
+                        <input
+                          className={control}
+                          maxLength={240}
+                          aria-label="Concepto"
+                          value={line.concept}
+                          onChange={(e) => update(index, { concept: e.target.value })}
+                        />
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <input
+                          className={`${control} tabular-nums text-center`}
+                          type="number"
+                          min="0.01"
+                          max="9999999999.99"
+                          step="0.01"
+                          aria-label="Cantidad"
+                          value={line.quantity}
+                          onChange={(e) => update(index, { quantity: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <input
+                          className={`${control} tabular-nums text-center`}
+                          type="number"
+                          min="0"
+                          max="9999999999.99"
+                          step="0.01"
+                          aria-label="Precio unitario"
+                          value={line.unitPrice}
+                          onChange={(e) => update(index, { unitPrice: Number(e.target.value) })}
+                        />
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <select
+                          className={`${control} text-center`}
+                          aria-label="IVA"
+                          value={line.vatRate}
+                          onChange={(e) => update(index, { vatRate: Number(e.target.value) })}
+                        >
+                          {[0, 4, 10, 21].map((rate) => <option key={rate} value={rate}>{rate} %</option>)}
+                        </select>
+                      </td>
+                      <td className="px-1 py-2 align-middle">
+                        <RemoveLineButton index={index} canRemove={lines.length > 1} onRemove={removeLine} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="space-y-2 p-3 md:hidden">
+                {lines.map((line, index) => (
+                  <div key={line.key} className={`${lineGrid} items-center rounded-lg bg-paper p-3`}>
+                    <input
+                      className={control}
+                      maxLength={240}
+                      aria-label="Concepto"
+                      value={line.concept}
+                      onChange={(e) => update(index, { concept: e.target.value })}
+                    />
+                    <input
+                      className={`${control} tabular-nums text-center`}
+                      type="number"
+                      min="0.01"
+                      max="9999999999.99"
+                      step="0.01"
+                      aria-label="Cantidad"
+                      value={line.quantity}
+                      onChange={(e) => update(index, { quantity: Number(e.target.value) })}
+                    />
+                    <input
+                      className={`${control} tabular-nums text-center`}
+                      type="number"
+                      min="0"
+                      max="9999999999.99"
+                      step="0.01"
+                      aria-label="Precio unitario"
+                      value={line.unitPrice}
+                      onChange={(e) => update(index, { unitPrice: Number(e.target.value) })}
+                    />
+                    <select
+                      className={`${control} text-center`}
+                      aria-label="IVA"
+                      value={line.vatRate}
+                      onChange={(e) => update(index, { vatRate: Number(e.target.value) })}
+                    >
+                      {[0, 4, 10, 21].map((rate) => <option key={rate} value={rate}>{rate} %</option>)}
+                    </select>
+                    <RemoveLineButton index={index} canRemove={lines.length > 1} onRemove={removeLine} />
+                  </div>
+                ))}
               </div>
-              {lines.map((line, index) => (
-                <div key={line.key} className={`${lineGrid} items-center rounded-lg bg-paper p-3`}>
-                  <input
-                    className={control}
-                    maxLength={240}
-                    aria-label="Concepto"
-                    value={line.concept}
-                    onChange={(e) => update(index, { concept: e.target.value })}
-                  />
-                  <input
-                    className={control}
-                    type="number"
-                    min="0.01"
-                    max="9999999999.99"
-                    step="0.01"
-                    aria-label="Cantidad"
-                    value={line.quantity}
-                    onChange={(e) => update(index, { quantity: Number(e.target.value) })}
-                  />
-                  <input
-                    className={control}
-                    type="number"
-                    min="0"
-                    max="9999999999.99"
-                    step="0.01"
-                    aria-label="Precio unitario"
-                    value={line.unitPrice}
-                    onChange={(e) => update(index, { unitPrice: Number(e.target.value) })}
-                  />
-                  <select
-                    className={control}
-                    aria-label="IVA"
-                    value={line.vatRate}
-                    onChange={(e) => update(index, { vatRate: Number(e.target.value) })}
-                  >
-                    {[0, 4, 10, 21].map((rate) => <option key={rate} value={rate}>{rate} %</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    className="grid h-9 w-9 place-items-center justify-self-end rounded-lg border border-line bg-white text-mist transition hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-35 md:justify-self-center"
-                    aria-label="Quitar línea"
-                    title={lines.length <= 1 ? 'La factura necesita al menos una línea' : 'Quitar línea'}
-                    disabled={lines.length <= 1}
-                    onClick={() => removeLine(index)}
-                  >
-                    <span aria-hidden className="text-lg leading-none">×</span>
-                  </button>
-                </div>
-              ))}
             </div>
           </Field>
           <button type="button" className="text-sm text-moss" onClick={() => setLines([...lines, makeRow(blankLine())])}>
@@ -207,5 +263,28 @@ export default function NewInvoicePage() {
         </form>
       </Card>
     </div>
+  )
+}
+
+function RemoveLineButton({
+  index,
+  canRemove,
+  onRemove,
+}: {
+  index: number
+  canRemove: boolean
+  onRemove: (index: number) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-white text-mist transition hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-35"
+      aria-label="Quitar línea"
+      title={canRemove ? 'Quitar línea' : 'La factura necesita al menos una línea'}
+      disabled={!canRemove}
+      onClick={() => onRemove(index)}
+    >
+      <span aria-hidden className="text-lg leading-none">×</span>
+    </button>
   )
 }
