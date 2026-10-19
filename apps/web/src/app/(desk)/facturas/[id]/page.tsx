@@ -1,7 +1,7 @@
 'use client'
 
 import { FormEvent, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { euro, fecha, operationLabel } from '@/lib/format'
 import { reason, useToast } from '@/lib/toast'
@@ -27,6 +27,7 @@ interface Invoice {
 
 export default function InvoiceDetailPage() {
   const params = useParams<{ id: string }>()
+  const router = useRouter()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState('2026-06-15')
@@ -42,8 +43,13 @@ export default function InvoiceDetailPage() {
     setError('')
     try {
       const next = await api<Invoice>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined })
+      if (path.endsWith('/rectify')) {
+        toast('Rectificativa creada')
+        router.push(`/facturas/${next.id}`)
+        return
+      }
       setInvoice(next)
-      toast(path.endsWith('/issue') ? 'Factura emitida' : path.endsWith('/rectify') ? 'Rectificativa creada' : 'Cobro registrado')
+      toast(path.endsWith('/issue') ? 'Factura emitida' : 'Cobro registrado')
     } catch (caught) {
       const message = reason(caught, 'No se pudo completar')
       setError(message)
@@ -105,7 +111,17 @@ export default function InvoiceDetailPage() {
             <Button onClick={() => void pdf()}>Ver PDF</Button>
             {invoice.status === 'BORRADOR' ? <Button onClick={() => void run(`/issued-invoices/${invoice.id}/issue`)}>Emitir</Button> : null}
             {invoice.status !== 'BORRADOR' && !invoice.rectifiesId ? (
-              <Button tone="ghost" onClick={() => void run(`/issued-invoices/${invoice.id}/rectify`)}>Crear rectificativa</Button>
+              <Button
+                tone="ghost"
+                onClick={() => {
+                  const ok = window.confirm(
+                    'Se emitirá una rectificativa con los mismos importes que esta factura. En impuestos anula el efecto de la original. ¿Continuar?',
+                  )
+                  if (ok) void run(`/issued-invoices/${invoice.id}/rectify`)
+                }}
+              >
+                Crear rectificativa
+              </Button>
             ) : null}
           </Card>
           {pending > 0 && !invoice.rectifiesId && invoice.status !== 'BORRADOR' ? (
