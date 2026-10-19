@@ -84,11 +84,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen lg:grid lg:h-dvh lg:grid-cols-[260px_1fr] lg:overflow-hidden">
-      <aside className="hidden bg-pine text-[#f3f0e8] lg:flex lg:h-dvh lg:flex-col lg:overflow-y-auto">
-        <div className="px-5 pb-4 pt-6">
+      <aside className="hidden bg-pine text-[#f3f0e8] lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden">
+        <div className="px-5 pb-2 pt-5">
           <Brand />
         </div>
-        <NavList groups={visibleGroups} pathname={pathname} />
+        <NavList dense groups={visibleGroups} pathname={pathname} />
         <UserFoot name={user.name} role={user.role} />
       </aside>
       {menuOpen ? (
@@ -183,13 +183,15 @@ function NavList({
   groups: navGroups,
   pathname,
   onNavigate,
+  dense = false,
 }: {
   groups: NavGroup[]
   pathname: string
   onNavigate?: () => void
+  dense?: boolean
 }) {
   return (
-    <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4">
+    <nav className={`min-h-0 flex-1 px-3 ${dense ? 'space-y-3 overflow-hidden pb-2' : 'space-y-5 overflow-y-auto pb-4'}`}>
       {navGroups.map((group) => (
         <div key={group.label}>
           <p className="px-3 pb-1 text-[0.65rem] uppercase tracking-[0.16em] text-gold/80">{group.label}</p>
@@ -200,7 +202,7 @@ function NavList({
                 key={link.href}
                 href={link.href}
                 onClick={active ? onNavigate : undefined}
-                className={`block rounded-md border-l-2 px-3 py-2 text-sm ${
+                className={`block rounded-md border-l-2 px-3 text-sm ${dense ? 'py-1.5' : 'py-2'} ${
                   active ? 'border-gold bg-white/10 text-white' : 'border-transparent text-[#d9d3c7] hover:bg-white/5'
                 }`}
               >
@@ -216,7 +218,7 @@ function NavList({
 
 function UserFoot({ name, role }: { name: string; role: keyof typeof roleLabel }) {
   return (
-    <div className="mt-auto border-t border-white/10 px-5 py-4">
+    <div className="mt-auto shrink-0 border-t border-white/10 px-5 py-3">
       <p className="text-sm font-medium">{name}</p>
       <p className="text-xs text-[#d9d3c7]">{roleLabel[role]}</p>
     </div>
