@@ -124,6 +124,8 @@ export class TaxController {
         devengado: quarter.modelo303.devengado,
         deducible: quarter.modelo303.deducible,
         resultado: quarter.modelo303.resultado,
+        retencion: quarter.modelo111.retencion,
+        perceptores: quarter.modelo111.perceptores,
       })),
       total: {
         devengado: calculated.total.modelo303.devengado,

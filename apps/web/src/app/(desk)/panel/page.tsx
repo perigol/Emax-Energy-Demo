@@ -15,7 +15,14 @@ interface Summary {
   pendienteCobro: number
   pendientePago: number
   months: { month: number; ingresos: number; gastos: number }[]
-  quarters: { quarter: number; devengado: number; deducible: number; resultado: number }[]
+  quarters: {
+    quarter: number
+    devengado: number
+    deducible: number
+    resultado: number
+    retencion?: number
+    perceptores?: number
+  }[]
   total: { devengado: number; deducible: number; resultado: number; retencion: number }
 }
 
@@ -102,10 +109,16 @@ export default function PanelPage() {
                   <dt className="text-[#d9d3c7]">IVA de compras</dt>
                   <dd className="tabular">{euro.format(data.total.deducible)}</dd>
                 </div>
-                <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-[#d9d3c7]">Retención a profesionales</dt>
-                  <dd className="tabular">{euro.format(data.total.retencion)}</dd>
-                </div>
+                {data.total.retencion > 0 ? (
+                  <div className="flex items-baseline justify-between gap-4">
+                    <dt>
+                      <Link href={`/impuestos/111?year=${year}&quarter=${quarterWithRetention(data.quarters)}`} className="text-gold">
+                        Retención a profesionales
+                      </Link>
+                    </dt>
+                    <dd className="tabular">{euro.format(data.total.retencion)}</dd>
+                  </div>
+                ) : null}
               </dl>
             </div>
           </section>
@@ -119,8 +132,8 @@ export default function PanelPage() {
           {data.months ? <Evolution months={data.months} /> : null}
           <div className="grid min-h-0 flex-1 grid-cols-2 gap-2 lg:grid-cols-4">
             {data.quarters.map((quarter) => (
-              <Link key={quarter.quarter} href={`/impuestos/303?year=${year}&quarter=${quarter.quarter}`} className="min-h-0">
-                <Card className="flex h-full flex-col justify-center !p-3 transition hover:-translate-y-0.5">
+              <Card key={quarter.quarter} className="flex h-full flex-col justify-center !p-3">
+                <Link href={`/impuestos/303?year=${year}&quarter=${quarter.quarter}`} className="block transition hover:-translate-y-0.5">
                   <p className="text-xs uppercase tracking-[0.14em] text-gold">{trimestre(quarter.quarter, year)} · IVA</p>
                   <p className="mt-0.5 text-xs text-mist">{trimestreRango(quarter.quarter as 1 | 2 | 3 | 4, year)}</p>
                   <p className="tabular mt-1 font-serif text-2xl leading-none text-pine">{euro.format(quarter.resultado)}</p>
@@ -128,8 +141,14 @@ export default function PanelPage() {
                   <p className="mt-1 text-xs text-mist">
                     {euro.format(quarter.devengado)} − {euro.format(quarter.deducible)}
                   </p>
-                </Card>
-              </Link>
+                </Link>
+                {quarter.retencion ? (
+                  <Link href={`/impuestos/111?year=${year}&quarter=${quarter.quarter}`} className="mt-1 text-xs text-moss">
+                    Retención {euro.format(quarter.retencion)}
+                    {quarter.perceptores ? ` · ${quarter.perceptores} ${quarter.perceptores === 1 ? 'profesional' : 'profesionales'}` : ''}
+                  </Link>
+                ) : null}
+              </Card>
             ))}
           </div>
         </div>
@@ -164,6 +183,10 @@ function Metric({
       )}
     </Card>
   )
+}
+
+function quarterWithRetention(quarters: Summary['quarters']) {
+  return quarters.find((quarter) => quarter.retencion)?.quarter ?? 1
 }
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
