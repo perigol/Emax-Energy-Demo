@@ -126,6 +126,8 @@ export class TaxController {
         resultado: quarter.modelo303.resultado,
         retencion: quarter.modelo111.retencion,
         perceptores: quarter.modelo111.perceptores,
+        operaciones: quarter.modelo349.length,
+        baseIntracomunitaria: money(quarter.modelo349.reduce((sum, line) => sum + line.base, 0)),
       })),
       total: {
         devengado: calculated.total.modelo303.devengado,
@@ -133,6 +135,8 @@ export class TaxController {
         resultado: calculated.total.modelo303.resultado,
         perceptores: calculated.total.modelo111.perceptores,
         retencion: calculated.total.modelo111.retencion,
+        operaciones: calculated.total.modelo349.length,
+        baseIntracomunitaria: money(calculated.total.modelo349.reduce((sum, line) => sum + line.base, 0)),
       },
     }
   }

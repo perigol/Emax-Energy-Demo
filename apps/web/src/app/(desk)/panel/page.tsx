@@ -22,8 +22,17 @@ interface Summary {
     resultado: number
     retencion?: number
     perceptores?: number
+    operaciones?: number
+    baseIntracomunitaria?: number
   }[]
-  total: { devengado: number; deducible: number; resultado: number; retencion: number }
+  total: {
+    devengado: number
+    deducible: number
+    resultado: number
+    retencion: number
+    operaciones?: number
+    baseIntracomunitaria?: number
+  }
 }
 
 export default function PanelPage() {
@@ -112,11 +121,21 @@ export default function PanelPage() {
                 {data.total.retencion > 0 ? (
                   <div className="flex items-baseline justify-between gap-4">
                     <dt>
-                      <Link href={`/impuestos/111?year=${year}&quarter=${quarterWithRetention(data.quarters)}`} className="text-gold">
-                        Retención a profesionales
+                      <Link href={`/impuestos/111?year=${year}&quarter=${quarterOf(data.quarters, (item) => item.retencion)}`} className="text-gold">
+                        IRPF retenido
                       </Link>
                     </dt>
                     <dd className="tabular">{euro.format(data.total.retencion)}</dd>
+                  </div>
+                ) : null}
+                {data.total.operaciones ? (
+                  <div className="flex items-baseline justify-between gap-4">
+                    <dt>
+                      <Link href={`/impuestos/349?year=${year}&quarter=${quarterOf(data.quarters, (item) => item.operaciones)}`} className="text-gold">
+                        Operaciones con la UE
+                      </Link>
+                    </dt>
+                    <dd className="tabular">{euro.format(data.total.baseIntracomunitaria || 0)}</dd>
                   </div>
                 ) : null}
               </dl>
@@ -144,8 +163,13 @@ export default function PanelPage() {
                 </Link>
                 {quarter.retencion ? (
                   <Link href={`/impuestos/111?year=${year}&quarter=${quarter.quarter}`} className="mt-1 text-xs text-moss">
-                    Retención {euro.format(quarter.retencion)}
+                    IRPF {euro.format(quarter.retencion)}
                     {quarter.perceptores ? ` · ${quarter.perceptores} ${quarter.perceptores === 1 ? 'profesional' : 'profesionales'}` : ''}
+                  </Link>
+                ) : null}
+                {quarter.operaciones ? (
+                  <Link href={`/impuestos/349?year=${year}&quarter=${quarter.quarter}`} className="mt-1 block text-xs text-moss">
+                    UE {euro.format(quarter.baseIntracomunitaria || 0)} · {quarter.operaciones} {quarter.operaciones === 1 ? 'operación' : 'operaciones'}
                   </Link>
                 ) : null}
               </Card>
@@ -185,8 +209,8 @@ function Metric({
   )
 }
 
-function quarterWithRetention(quarters: Summary['quarters']) {
-  return quarters.find((quarter) => quarter.retencion)?.quarter ?? 1
+function quarterOf(quarters: Summary['quarters'], present: (quarter: Summary['quarters'][number]) => number | undefined) {
+  return quarters.find((quarter) => present(quarter))?.quarter ?? 1
 }
 
 const MONTHS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
